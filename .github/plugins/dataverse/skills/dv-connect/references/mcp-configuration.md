@@ -92,10 +92,9 @@ Store this path for use in steps 2 and 5.
 
 **If TOOL_TYPE is `antigravity`:**
 
-Default to the workspace configuration `.agents/mcp_config.json`, so the
-Dataverse environment remains project-specific. Antigravity also supports the
-global path `~/.gemini/config/mcp_config.json` when the user explicitly asks for
-global scope. Store the selected path as `CONFIG_PATH`.
+Antigravity CLI manages MCP servers at user scope through `agy mcp`. Do not
+write `.agents/mcp_config.json`; Antigravity CLI 1.2.10 does not discover that
+file. The CLI persists registrations in `~/.gemini/config/mcp_config.json`.
 
 **If TOOL_TYPE is `gemini`:**
 
@@ -153,9 +152,8 @@ If the environment URL from `.env` is already in `CONFIGURED_URLS`, the MCP serv
 
 **If TOOL_TYPE is `antigravity`:**
 
-Read `CONFIG_PATH` and inspect the `mcpServers` object. If a `dataverse-{orgid}`
-entry already uses the selected environment URL, do not add a duplicate.
-Confirm the live state in `/mcp` after restarting `agy`.
+Run `agy mcp list`. If a `dataverse-{orgid}` entry already uses the selected
+environment URL, do not add a duplicate.
 
 **If TOOL_TYPE is `gemini`:**
 
@@ -300,27 +298,16 @@ Enter `USER_URL`, restart Gemini, and verify with `gemini mcp list`.
 
 **If TOOL_TYPE is `antigravity`:**
 
-Create `.agents` for workspace scope, then read `CONFIG_PATH` or start with
-`{ "mcpServers": {} }`. Preserve all existing servers and add or update:
+Register through Antigravity's native CLI:
 
-```json
-{
-   "mcpServers": {
-      "dataverse-{orgid}": {
-         "command": "npx",
-         "args": ["-y", "@microsoft/dataverse@latest", "mcp", "{USER_URL}"],
-         "env": {
-            "DATAVERSE_OPERATION_CONTEXT": "app=dataverse-skills/{DATAVERSE_PLUGIN_VERSION};skill=mcp-direct;agent=antigravity-cli"
-         }
-      }
-   }
-}
+```bash
+agy mcp add \
+  --env "DATAVERSE_OPERATION_CONTEXT=app=dataverse-skills/{DATAVERSE_PLUGIN_VERSION};skill=mcp-direct;agent=antigravity-cli" \
+  dataverse-{orgid} npx -y @microsoft/dataverse@latest mcp {USER_URL}
 ```
 
-Append `"--preview"` to `args` only when the user explicitly selected Preview.
-Write valid JSON with two-space indentation, restart `agy`, and verify the
-server in `/mcp`. The plugin does not ship this file because `{USER_URL}` is
-workspace-specific.
+Append `--preview` only when the user explicitly selected Preview. Restart
+`agy`, then verify with `agy mcp list` and `/mcp`.
 
 **If TOOL_TYPE is `copilot`:**
 
@@ -691,7 +678,7 @@ If something goes wrong, help the user check:
    - Restart Gemini and verify `gemini mcp list` before testing a real query.
 - **If TOOL_TYPE is `antigravity`:**
    - Confirm `/skills` lists the Dataverse skills and `/mcp` lists `dataverse-{orgid}`.
-   - Validate `.agents/mcp_config.json` as JSON and confirm its URL matches `.env`.
+   - Run `agy mcp list` and confirm its URL matches `.env`.
    - Restart `agy` after changing the configuration.
 - **If TOOL_TYPE is `copilot`:**
   - For project-scoped configuration, ensure the `.mcp.json` file was created successfully
