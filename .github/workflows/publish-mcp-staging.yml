@@ -1,0 +1,46 @@
+name: Publish MCP server (staging registry test)
+
+on:
+  push:
+    branches: [mcp-registry-staging-test]
+    paths:
+      - '.github/mcp/**'
+      - '.github/workflows/publish-mcp-staging.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REGISTRY_URL: https://staging.registry.modelcontextprotocol.io
+  PUBLISHER_VERSION: v1.8.1
+  SERVER_NAME: io.github.saurabhrb/dataverse-test
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/${PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          ./mcp-publisher --version
+
+      - name: Validate production manifest (com.microsoft/dataverse)
+        run: ./mcp-publisher validate .github/mcp/server.json
+
+      - name: Validate staging manifest
+        run: ./mcp-publisher validate .github/mcp/server.staging.json
+
+      - name: Log in to staging registry (GitHub OIDC)
+        run: ./mcp-publisher login github-oidc --registry "$REGISTRY_URL"
+
+      - name: Publish staging manifest
+        run: ./mcp-publisher publish .github/mcp/server.staging.json
+
+      - name: Verify entry is served
+        run: |
+          curl -fsS "$REGISTRY_URL/v0.1/servers/${SERVER_NAME/\//%2F}/versions/latest" | jq '{name: .server.name, version: .server.version, packages: .server.packages, meta: ._meta}'
+          curl -fsS "$REGISTRY_URL/v0.1/servers?search=dataverse-test&version=latest" | jq '.servers[].server.name'
